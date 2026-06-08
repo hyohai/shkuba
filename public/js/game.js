@@ -1,30 +1,36 @@
 /* ── Card Rendering ─────────────────────────────────────────────────── */
-const SUITS = ['coins', 'cups', 'swords', 'clubs'];
-// Display as standard playing card suits: coins→diamonds, cups→hearts, swords→spades, clubs→clubs
-const SUIT_SYMBOLS = {
-  coins:  { icon: '♦', label: '♦' },
-  cups:   { icon: '♥', label: '♥' },
-  swords: { icon: '♠', label: '♠' },
-  clubs:  { icon: '♣', label: '♣' },
+const SUIT_SYM = { coins:'♦', cups:'♥', swords:'♠', clubs:'♣' };
+const VAL_LABEL = { 1:'A', 8:'Q', 9:'J', 10:'K' };
+
+const PIP_LAYOUTS = {
+  1:[[4,2]],2:[[2,2],[6,2]],3:[[2,2],[4,2],[6,2]],
+  4:[[2,1],[2,3],[6,1],[6,3]],5:[[2,1],[2,3],[4,2],[6,1],[6,3]],
+  6:[[2,1],[2,3],[4,1],[4,3],[6,1],[6,3]],
+  7:[[2,1],[2,3],[3,2],[4,1],[4,3],[6,1],[6,3]],
 };
-const VALUE_LABELS = { 1:'A', 8:'Q', 9:'J', 10:'K' };
+const FACE_ICONS = { 8:['♛','QUEEN'], 9:['♞','JACK'], 10:['♚','KING'] };
 
-function valLabel(v) { return VALUE_LABELS[v] || String(v); }
+function valLabel(v) { return VAL_LABEL[v] || String(v); }
 
-function makeCardEl(card, extra = '') {
+function makeCardEl(card, extra='') {
   const el = document.createElement('div');
-  el.className = `card suit-${card.suit} ${extra}`;
-  const sym = SUIT_SYMBOLS[card.suit];
-  el.innerHTML = `
-    <div class="card-corner">
-      <span class="card-val">${valLabel(card.value)}</span>
-      <span class="card-suit-small">${sym.label}</span>
-    </div>
-    <div class="card-center">${sym.icon}</div>
-    <div class="card-corner-br">
-      <span class="card-val">${valLabel(card.value)}</span>
-      <span class="card-suit-small">${sym.label}</span>
-    </div>`;
+  el.className = `card suit-${card.suit}${extra ? ' '+extra : ''}`;
+  const sym = SUIT_SYM[card.suit];
+  const vl = valLabel(card.value);
+  const corner = `<div class="card-corner"><span class="card-val">${vl}</span><span class="card-suit-small">${sym}</span></div><div class="card-corner-br"><span class="card-val">${vl}</span><span class="card-suit-small">${sym}</span></div>`;
+  if (card.value >= 8) {
+    const [icon, title] = FACE_ICONS[card.value];
+    el.innerHTML = corner + `<div class="card-face"><div class="card-face-stripe top">${sym} ${sym} ${sym}</div><div class="card-face-icon">${icon}</div><div class="card-face-title">${title}</div><div class="card-face-stripe bot">${sym} ${sym} ${sym}</div></div>`;
+  } else {
+    const layout = PIP_LAYOUTS[card.value] || [[4,2]];
+    let pipsHtml = `<div class="card-pips" style="grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(7,1fr)">`;
+    for (const [r,c] of layout) {
+      const rot = r > 4 ? 'transform:rotate(180deg)' : '';
+      pipsHtml += `<span class="pip" style="grid-row:${r};grid-column:${c};${rot}">${sym}</span>`;
+    }
+    pipsHtml += '</div>';
+    el.innerHTML = corner + pipsHtml;
+  }
   return el;
 }
 
@@ -176,6 +182,25 @@ socket.on('play_result', ({ playerName, playedCard, capturedCards, isScopa, isTr
 socket.on('player_replaced', ({ name, botName }) => {
   showToast(`${name} left — replaced by 🤖 ${botName}`, 3500);
 });
+
+// ── Game Log ──────────────────────────────────────────────────────────
+const gameLogEntries = [];
+socket.on('game_log', ({ text }) => {
+  gameLogEntries.unshift(text); // newest first
+  if (gameLogEntries.length > 3) gameLogEntries.pop();
+  renderGameLog();
+});
+function renderGameLog() {
+  const el = document.getElementById('game-log');
+  if (!el) return;
+  el.innerHTML = '<div class="game-log-title">Log</div>';
+  gameLogEntries.forEach((entry, i) => {
+    const div = document.createElement('div');
+    div.className = 'game-log-entry' + (i === 0 ? ' latest' : '');
+    div.textContent = entry;
+    el.appendChild(div);
+  });
+}
 
 function renderState(state) {
   switch (state.phase) {
@@ -602,28 +627,41 @@ function renderRoundEnd(state) {
   const bdDiv = document.getElementById('round-breakdown');
   const isTeams = state.teams !== null;
 
+  // Helper: wrap in bold if this is the winner of a column
+  const b = (val, isBold) => isBold ? `<strong>${val}</strong>` : val;
+
   if (isTeams) {
-    // Build one row per team using aggregated stats
     const teams = [0, 1].map(t => {
       const members = breakdown.filter(b => b.teamIndex === t);
       const agg = members[0].teamAgg;
-      const pts = members[0].points; // same for both
+      const pts = members[0].points;
       const tied = members.some(b => b.sevensTied);
       return { t, members, agg, pts, tied };
     });
     const sevensTied = teams.some(t => t.tied);
+    // Determine column winners for bolding
+    const maxCards = Math.max(...teams.map(t => t.agg.totalCards));
+    const maxDiamonds = Math.max(...teams.map(t => t.agg.diamonds));
+    const maxSevens = Math.max(...teams.map(t => t.agg.sevens));
+    const maxSixes = Math.max(...teams.map(t => t.agg.sixes));
+    const cardWin = teams.filter(t => t.agg.totalCards === maxCards).length === 1;
+    const diaWin  = teams.filter(t => t.agg.diamonds === maxDiamonds).length === 1;
+    const sevWin  = teams.filter(t => t.agg.sevens === maxSevens).length === 1;
+    const sixWin  = teams.filter(t => t.agg.sixes === maxSixes).length === 1 && sevensTied;
+
     const cols = ['Team', 'Cards', '♦', '7♦', 'Sevens', ...(sevensTied ? ['Sixes'] : []), 'Scopas', 'Pts'];
     let html = '<table><thead><tr>' + cols.map(c => `<th>${c}</th>`).join('') + '</tr></thead><tbody>';
     for (const { t, members, agg, pts, tied } of teams) {
-      const label = `Team ${t === 0 ? 'A' : 'B'}<br><small>${members.map(b => b.name).join(' & ')}</small>`;
+      const maxScopas = Math.max(...teams.map(t2 => t2.agg.scopas));
+      const label = `Team ${t === 0 ? 'A' : 'B'}<br><small>${members.map(b2 => b2.name).join(' & ')}</small>`;
       html += `<tr class="team-row-${t}">
         <td>${label}</td>
-        <td>${agg.totalCards}</td>
-        <td>${agg.diamonds}</td>
-        <td>${agg.hasSettebello ? '✓' : ''}</td>
-        <td>${agg.sevens}${tied ? ' *' : ''}</td>
-        ${sevensTied ? `<td>${tied ? agg.sixes : '–'}</td>` : ''}
-        <td>${agg.scopas}</td>
+        <td>${b(agg.totalCards, cardWin && agg.totalCards === maxCards)}</td>
+        <td>${b(agg.diamonds, diaWin && agg.diamonds === maxDiamonds)}</td>
+        <td>${b(agg.hasSettebello ? '✓' : '', agg.hasSettebello)}</td>
+        <td>${b(agg.sevens + (tied ? ' *' : ''), sevWin && agg.sevens === maxSevens)}</td>
+        ${sevensTied ? `<td>${tied ? b(agg.sixes, sixWin && agg.sixes === maxSixes) : '–'}</td>` : ''}
+        <td>${b(agg.scopas, agg.scopas === maxScopas && maxScopas > 0)}</td>
         <td class="earned">+${pts}</td>
       </tr>`;
     }
@@ -631,19 +669,29 @@ function renderRoundEnd(state) {
     html += '</tbody></table>';
     bdDiv.innerHTML = html;
   } else {
-    const sevensTied = breakdown.some(b => b.sevensTied);
+    const sevensTied = breakdown.some(b2 => b2.sevensTied);
+    const maxCards    = Math.max(...breakdown.map(b2 => b2.totalCards));
+    const maxDiamonds = Math.max(...breakdown.map(b2 => b2.diamonds));
+    const maxSevens   = Math.max(...breakdown.map(b2 => b2.sevens));
+    const maxSixes    = Math.max(...breakdown.map(b2 => b2.sixes));
+    const maxScopas   = Math.max(...breakdown.map(b2 => b2.scopas));
+    const cardWin  = breakdown.filter(b2 => b2.totalCards === maxCards).length === 1;
+    const diaWin   = breakdown.filter(b2 => b2.diamonds === maxDiamonds).length === 1;
+    const sevWin   = breakdown.filter(b2 => b2.sevens === maxSevens).length === 1;
+    const sixWin   = breakdown.filter(b2 => b2.sixes === maxSixes).length === 1 && sevensTied;
+
     const cols = ['Player', 'Cards', '♦', '7♦', 'Sevens', ...(sevensTied ? ['Sixes'] : []), 'Scopas', 'Pts'];
     let html = '<table><thead><tr>' + cols.map(c => `<th>${c}</th>`).join('') + '</tr></thead><tbody>';
-    for (const b of breakdown) {
+    for (const b2 of breakdown) {
       html += `<tr>
-        <td>${b.name}</td>
-        <td>${b.totalCards}</td>
-        <td>${b.diamonds}</td>
-        <td>${b.hasSettebello ? '✓' : ''}</td>
-        <td>${b.sevens}${b.sevensTied ? ' *' : ''}</td>
-        ${sevensTied ? `<td>${b.sevensTied ? b.sixes : '–'}</td>` : ''}
-        <td>${b.scopas}</td>
-        <td class="earned">+${b.points}</td>
+        <td>${b2.name}</td>
+        <td>${b(b2.totalCards, cardWin && b2.totalCards === maxCards)}</td>
+        <td>${b(b2.diamonds, diaWin && b2.diamonds === maxDiamonds)}</td>
+        <td>${b(b2.hasSettebello ? '✓' : '', b2.hasSettebello)}</td>
+        <td>${b(b2.sevens + (b2.sevensTied ? ' *' : ''), sevWin && b2.sevens === maxSevens)}</td>
+        ${sevensTied ? `<td>${b2.sevensTied ? b(b2.sixes, sixWin && b2.sixes === maxSixes) : '–'}</td>` : ''}
+        <td>${b(b2.scopas, b2.scopas === maxScopas && maxScopas > 0)}</td>
+        <td class="earned">+${b2.points}</td>
       </tr>`;
     }
     if (sevensTied) html += `<tr><td colspan="${cols.length}" class="tie-note">* Tied on 7s — tiebreak by 6s</td></tr>`;
