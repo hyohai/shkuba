@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
+<title>Shkuba · Scopa</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="/css/style.css"/>
+</head>
+<body>
+
+<!-- ── LOBBY ───────────────────────────────────────────────────────── -->
+<div id="screen-lobby" class="screen active">
+  <div class="lobby-bg"></div>
+  <div class="lobby-center">
+    <h1 class="title-main">שקובה<span class="title-sub">SCOPA</span></h1>
+    <div class="name-row">
+      <input id="input-name" type="text" placeholder="Your name" maxlength="16" autocomplete="off"/>
+    </div>
+    <div class="lobby-actions">
+      <button class="btn btn-gold" id="btn-host">Host Game</button>
+      <div class="divider">or</div>
+      <div class="join-row">
+        <input id="input-code" type="text" placeholder="Room code" maxlength="4" autocomplete="off"/>
+        <button class="btn btn-outline" id="btn-join">Join</button>
+      </div>
+    </div>
+    <p class="error-msg" id="lobby-error"></p>
+  </div>
+</div>
+
+<!-- ── WAITING ROOM ────────────────────────────────────────────────── -->
+<div id="screen-waiting" class="screen">
+  <div class="waiting-inner">
+    <div class="room-code-display">
+      <span class="room-label">Room Code</span>
+      <span class="room-code" id="display-code">----</span>
+    </div>
+    <div class="waiting-players" id="waiting-players"></div>
+    <p class="waiting-hint" id="waiting-hint">Waiting for players…</p>
+
+    <!-- Team assignment (4 players, host only) -->
+    <div class="team-section hidden" id="team-section">
+      <div class="team-section-title">Assign Teams</div>
+      <div class="team-grid" id="team-grid"></div>
+      <div class="team-actions">
+        <button class="btn btn-sm btn-outline" id="btn-clear-teams">Free for all</button>
+        <button class="btn btn-sm btn-gold" id="btn-confirm-teams">Confirm Teams</button>
+      </div>
+      <div class="team-display hidden" id="team-display"></div>
+    </div>
+
+    <div class="bot-row hidden" id="bot-row">
+      <button class="btn btn-sm btn-outline" id="btn-add-bot">+ Add Bot</button>
+      <button class="btn btn-sm btn-outline" id="btn-remove-bot">− Remove Bot</button>
+    </div>
+    <button class="btn btn-gold hidden" id="btn-start">Start Game</button>
+    <p class="error-msg" id="waiting-error"></p>
+  </div>
+</div>
+
+<!-- ── SHUFFLE / CUT ───────────────────────────────────────────────── -->
+<div id="screen-ceremony" class="screen">
+  <div class="ceremony-inner">
+    <div class="ceremony-deck" id="ceremony-deck">
+      <div class="deck-stack"></div>
+      <div class="deck-stack"></div>
+      <div class="deck-stack"></div>
+    </div>
+    <p class="ceremony-message" id="ceremony-message"></p>
+    <button class="btn btn-gold hidden" id="btn-shuffle">Shuffle Deck</button>
+    <button class="btn btn-gold hidden" id="btn-cut">Cut Deck</button>
+  </div>
+</div>
+
+<!-- ── PLAYING ─────────────────────────────────────────────────────── -->
+<div id="screen-game" class="screen">
+  <!-- Top bar: scores -->
+  <div class="topbar">
+    <div class="scores-strip" id="scores-strip"></div>
+  </div>
+
+  <!-- Table area -->
+  <div class="table-area">
+    <div class="table-top-row">
+      <div class="table-label">Table</div>
+      <div class="deck-count" id="deck-count">🂠 <span id="deck-count-num">0</span></div>
+    </div>
+    <div class="table-cards" id="table-cards"></div>
+    <div class="last-capture-hint hidden" id="last-capture-hint"></div>
+  </div>
+
+  <!-- Turn indicator -->
+  <div class="turn-banner" id="turn-banner"></div>
+
+  <!-- Player hand -->
+  <div class="hand-area">
+    <div class="hand-label">Your hand</div>
+    <div class="hand-cards" id="hand-cards"></div>
+  </div>
+
+  <!-- Play result overlay -->
+  <div class="play-result-overlay hidden" id="play-result-overlay">
+    <div class="play-result-inner">
+      <div class="play-result-player" id="play-result-player"></div>
+      <div class="play-result-cards" id="play-result-cards"></div>
+      <div class="play-result-label" id="play-result-label"></div>
+    </div>
+  </div>
+
+  <!-- Capture bar -->
+  <div class="capture-bar hidden" id="capture-bar">
+    <span class="capture-hint">Select table cards to capture</span>
+    <button class="btn btn-sm btn-gold hidden" id="btn-throw-card">Throw card ✗</button>
+    <button class="btn btn-sm btn-gold" id="btn-confirm-capture">Capture ✓</button>
+    <button class="btn btn-sm btn-outline" id="btn-cancel-capture">Cancel</button>
+  </div>
+</div>
+
+<!-- ── ROUND END ───────────────────────────────────────────────────── -->
+<div id="screen-round-end" class="screen">
+  <div class="results-inner">
+    <h2 class="results-title">Round Over</h2>
+    <div class="round-breakdown" id="round-breakdown"></div>
+    <div class="total-scores" id="total-scores"></div>
+    <button class="btn btn-gold hidden" id="btn-next-round">Next Round →</button>
+  </div>
+</div>
+
+<!-- ── GAME END ────────────────────────────────────────────────────── -->
+<div id="screen-game-end" class="screen">
+  <div class="winner-inner">
+    <div class="winner-crown">♛</div>
+    <h2 class="winner-name" id="winner-name"></h2>
+    <p class="winner-sub">Wins the game!</p>
+    <div class="final-scores" id="final-scores"></div>
+    <button class="btn btn-gold" id="btn-new-game">New Game</button>
+  </div>
+</div>
+
+<!-- ── TOAST ───────────────────────────────────────────────────────── -->
+<div class="toast hidden" id="toast"></div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="/js/game.js"></script>
+</body>
+</html>
