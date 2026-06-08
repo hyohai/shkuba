@@ -130,8 +130,11 @@ function dealCards(room) {
   room.isLastDeal=room.deck.length===0;
   room.currentPlayerIndex=(room.dealerIndex+1)%room.players.length;
   room.phase='playing';
-  log(room.code, `dealt set ${room.dealtThisRound}, deckLeft=${room.deck.length}, isLastDeal=${room.isLastDeal}`);
+  log(room.code, `dealt set ${room.dealtThisRound}, deckLeft=${room.deck.length}, isLastDeal=${room.isLastDeal}, firstPlayer=${room.players[room.currentPlayerIndex]?.name}`);
   io.to(room.code).emit('cards_dealt',{isLastDeal:room.isLastDeal});
+  // Always trigger bot here — handles both first deal and mid-round re-deals
+  const first = room.players[room.currentPlayerIndex];
+  if (first && first.isBot) scheduleBotWatchdog(room, room.code, first.id);
 }
 
 // ─── Scoring ─────────────────────────────────────────────────────────────────
