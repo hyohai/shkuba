@@ -716,7 +716,7 @@ input[type="text"]::placeholder { color: var(--text-dim); }
   to   { transform: scale(1) translateY(0); opacity: 1; }
 }
 
-/* ── Circled winner in scoring table ───────────────────────────────── */
+/* ── Circled winner in scoring table (not scopas) ──────────────────── */
 .round-breakdown td strong {
   display: inline-flex;
   align-items: center; justify-content: center;
@@ -729,39 +729,13 @@ input[type="text"]::placeholder { color: var(--text-dim); }
   font-size: 0.9em;
   line-height: 1;
 }
-
-/* ── Game Log ──────────────────────────────────────────────────────── */
-.game-log {
-  position: absolute;
-  top: 200px; right: 0;
-  width: 128px;
-  background: rgba(0,0,0,0.45);
-  border-left: 1px solid rgba(201,146,42,0.15);
-  padding: 0.4rem 0.5rem;
-  z-index: 10;
-  pointer-events: none;
+.round-breakdown td.scopas-col {
+  border-left: 2px solid rgba(255,255,255,0.12);
+  padding-left: 0.6rem;
 }
-.game-log-title {
-  font-family: 'Cinzel', serif;
-  font-size: 0.55rem;
-  letter-spacing: 0.2em;
-  color: rgba(255,255,255,0.2);
-  text-transform: uppercase;
-  margin-bottom: 0.3rem;
-}
-.game-log-entry {
-  font-size: 0.72rem;
-  color: var(--text-dim);
-  line-height: 1.4;
-  padding: 0.15rem 0;
-  border-bottom: 1px solid rgba(255,255,255,0.04);
-  animation: log-fade-in 0.3s ease;
-}
-.game-log-entry:last-child { border-bottom: none; }
-.game-log-entry.latest { color: var(--cream); }
-@keyframes log-fade-in {
-  from { opacity: 0; transform: translateX(8px); }
-  to   { opacity: 1; transform: translateX(0); }
+.round-breakdown th.scopas-col {
+  border-left: 2px solid rgba(255,255,255,0.12);
+  padding-left: 0.6rem;
 }
 .toast {
   position: fixed;

@@ -195,24 +195,6 @@ socket.on('player_replaced', ({ name, botName }) => {
   showToast(`${name} left — replaced by 🤖 ${botName}`, 3500);
 });
 
-// ── Game Log ──────────────────────────────────────────────────────────
-const gameLogEntries = [];
-socket.on('game_log', ({ text }) => {
-  gameLogEntries.unshift(text); // newest first
-  if (gameLogEntries.length > 3) gameLogEntries.pop();
-  renderGameLog();
-});
-function renderGameLog() {
-  const el = document.getElementById('game-log');
-  if (!el) return;
-  el.innerHTML = '<div class="game-log-title">Log</div>';
-  gameLogEntries.forEach((entry, i) => {
-    const div = document.createElement('div');
-    div.className = 'game-log-entry' + (i === 0 ? ' latest' : '');
-    div.textContent = entry;
-    el.appendChild(div);
-  });
-}
 
 function renderState(state) {
   switch (state.phase) {
@@ -662,9 +644,8 @@ function renderRoundEnd(state) {
     const sixWin  = teams.filter(t => t.agg.sixes === maxSixes).length === 1 && sevensTied;
 
     const cols = ['Team', 'Cards', '♦', '7♦', 'Sevens', ...(sevensTied ? ['Sixes'] : []), 'Scopas', 'Pts'];
-    let html = '<table><thead><tr>' + cols.map(c => `<th>${c}</th>`).join('') + '</tr></thead><tbody>';
+    let html = '<table><thead><tr>' + cols.map(c => `<th${c==='Scopas'?' class="scopas-col"':''}>${c}</th>`).join('') + '</tr></thead><tbody>';
     for (const { t, members, agg, pts, tied } of teams) {
-      const maxScopas = Math.max(...teams.map(t2 => t2.agg.scopas));
       const label = `Team ${t === 0 ? 'A' : 'B'}<br><small>${members.map(b2 => b2.name).join(' & ')}</small>`;
       html += `<tr class="team-row-${t}">
         <td>${label}</td>
@@ -673,7 +654,7 @@ function renderRoundEnd(state) {
         <td>${b(agg.hasSettebello ? '✓' : '', agg.hasSettebello)}</td>
         <td>${b(agg.sevens + (tied ? ' *' : ''), sevWin && agg.sevens === maxSevens)}</td>
         ${sevensTied ? `<td>${tied ? b(agg.sixes, sixWin && agg.sixes === maxSixes) : '–'}</td>` : ''}
-        <td>${b(agg.scopas, agg.scopas === maxScopas && maxScopas > 0)}</td>
+        <td class="scopas-col">${agg.scopas}</td>
         <td class="earned">+${pts}</td>
       </tr>`;
     }
@@ -686,14 +667,13 @@ function renderRoundEnd(state) {
     const maxDiamonds = Math.max(...breakdown.map(b2 => b2.diamonds));
     const maxSevens   = Math.max(...breakdown.map(b2 => b2.sevens));
     const maxSixes    = Math.max(...breakdown.map(b2 => b2.sixes));
-    const maxScopas   = Math.max(...breakdown.map(b2 => b2.scopas));
     const cardWin  = breakdown.filter(b2 => b2.totalCards === maxCards).length === 1;
     const diaWin   = breakdown.filter(b2 => b2.diamonds === maxDiamonds).length === 1;
     const sevWin   = breakdown.filter(b2 => b2.sevens === maxSevens).length === 1;
     const sixWin   = breakdown.filter(b2 => b2.sixes === maxSixes).length === 1 && sevensTied;
 
     const cols = ['Player', 'Cards', '♦', '7♦', 'Sevens', ...(sevensTied ? ['Sixes'] : []), 'Scopas', 'Pts'];
-    let html = '<table><thead><tr>' + cols.map(c => `<th>${c}</th>`).join('') + '</tr></thead><tbody>';
+    let html = '<table><thead><tr>' + cols.map(c => `<th${c==='Scopas'?' class="scopas-col"':''}>${c}</th>`).join('') + '</tr></thead><tbody>';
     for (const b2 of breakdown) {
       html += `<tr>
         <td>${b2.name}</td>
@@ -702,7 +682,7 @@ function renderRoundEnd(state) {
         <td>${b(b2.hasSettebello ? '✓' : '', b2.hasSettebello)}</td>
         <td>${b(b2.sevens + (b2.sevensTied ? ' *' : ''), sevWin && b2.sevens === maxSevens)}</td>
         ${sevensTied ? `<td>${b2.sevensTied ? b(b2.sixes, sixWin && b2.sixes === maxSixes) : '–'}</td>` : ''}
-        <td>${b(b2.scopas, b2.scopas === maxScopas && maxScopas > 0)}</td>
+        <td class="scopas-col">${b2.scopas}</td>
         <td class="earned">+${b2.points}</td>
       </tr>`;
     }
