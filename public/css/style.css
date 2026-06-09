@@ -442,47 +442,48 @@ input[type="text"]::placeholder { color: var(--text-dim); }
   display: flex; flex-direction: column; align-items: center;
   line-height: 1; transform: rotate(180deg); z-index: 2;
 }
-.card-val { font-family: 'Cinzel', serif; font-weight: 700; font-size: 0.8rem; line-height: 1.1; }
-.card-suit-small { font-size: 0.6rem; line-height: 1; }
+.card-val { font-family: 'Cinzel', serif; font-weight: 700; font-size: 0.85rem; line-height: 1.1; }
+.card-suit-small { font-size: 0.7rem; line-height: 1; }
 
-/* Pip grid for number cards */
+/* Pip layout — absolute positions as % of card */
 .card-pips {
-  position: absolute; inset: 16px 6px 16px 6px;
-  display: grid;
-  align-items: center; justify-items: center;
+  position: absolute; inset: 0;
 }
-.pip { font-size: 0.8rem; line-height: 1; }
+.pip {
+  position: absolute;
+  font-size: 1.05rem;
+  line-height: 1;
+  transform: translate(-50%, -50%);
+}
+.pip.flip { transform: translate(-50%, -50%) rotate(180deg); }
 
-/* Face card styling */
+/* Face cards */
 .card-face {
   position: absolute; inset: 0;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 1px;
+  gap: 2px;
 }
-.card-face-icon { font-size: 1.9rem; line-height: 1; }
-.card-face-title {
-  font-family: 'Cinzel', serif; font-size: 0.45rem; font-weight: 700;
-  letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.7;
+.card-face-icon { font-size: 2.4rem; line-height: 1; }
+.card-face-label {
+  font-family: 'Cinzel', serif; font-size: 0.5rem; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.65;
 }
-.card-face-stripe {
-  position: absolute; left: 0; right: 0;
-  height: 14px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 0.55rem; letter-spacing: 0.15em; font-family: 'Cinzel', serif;
-  opacity: 0.5;
+.card-face-suits {
+  font-size: 0.65rem; letter-spacing: 0.15em; opacity: 0.45;
+  position: absolute; left: 0; right: 0; text-align: center;
 }
-.card-face-stripe.top { top: 14px; }
-.card-face-stripe.bot { bottom: 14px; transform: rotate(180deg); }
+.card-face-suits.top { top: 17px; }
+.card-face-suits.bot { bottom: 17px; transform: rotate(180deg); }
 
 /* Suit colors */
 .suit-coins .card-val, .suit-coins .pip, .suit-coins .card-face-icon,
-.suit-coins .card-face-title, .suit-coins .card-face-stripe { color: #c00020; }
+.suit-coins .card-face-label, .suit-coins .card-face-suits { color: #c00020; }
 .suit-cups .card-val, .suit-cups .pip, .suit-cups .card-face-icon,
-.suit-cups .card-face-title, .suit-cups .card-face-stripe { color: #c00020; }
+.suit-cups .card-face-label, .suit-cups .card-face-suits { color: #c00020; }
 .suit-swords .card-val, .suit-swords .pip, .suit-swords .card-face-icon,
-.suit-swords .card-face-title, .suit-swords .card-face-stripe { color: #1a1a1a; }
+.suit-swords .card-face-label, .suit-swords .card-face-suits { color: #1a1a1a; }
 .suit-clubs .card-val, .suit-clubs .pip, .suit-clubs .card-face-icon,
-.suit-clubs .card-face-title, .suit-clubs .card-face-stripe { color: #1a1a1a; }
+.suit-clubs .card-face-label, .suit-clubs .card-face-suits { color: #1a1a1a; }
 
 .table-top-row {
   display: flex;
@@ -653,79 +654,88 @@ input[type="text"]::placeholder { color: var(--text-dim); }
   margin-bottom: 1.5rem;
 }
 
-/* ── Play Result Banner (bottom, non-blocking) ─────────────────────── */
+/* ── Play Result Panel (right side, non-blocking) ──────────────────── */
 .play-result-overlay {
   position: absolute;
-  bottom: 0; left: 0; right: 0;
-  background: rgba(13,26,15,0.96);
-  border-top: 1px solid var(--gold-dim);
+  top: 44px; right: 0;
+  width: 128px;
+  background: rgba(13,26,15,0.95);
+  border-left: 1px solid var(--gold-dim);
+  border-bottom: 1px solid var(--gold-dim);
+  border-radius: 0 0 0 8px;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  z-index: 50;
-  padding: 0.6rem 1rem;
-  animation: slide-up 0.2s ease;
+  gap: 0.4rem;
+  z-index: 60;
+  padding: 0.5rem 0.4rem;
+  animation: slide-in-right 0.2s ease;
   pointer-events: none;
 }
-@keyframes slide-up {
-  from { transform: translateY(100%); opacity: 0; }
-  to   { transform: translateY(0); opacity: 1; }
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0); }
 }
 .play-result-inner {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 0.6rem;
-  flex-wrap: wrap;
-  justify-content: center;
+  display: flex; flex-direction: column; align-items: center; gap: 0.35rem; width: 100%;
 }
 .play-result-player {
-  font-family: 'Cinzel', serif;
-  font-size: 0.85rem;
-  color: var(--gold2);
-  white-space: nowrap;
+  font-family: 'Cinzel', serif; font-size: 0.72rem;
+  color: var(--gold2); text-align: center; width: 100%;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .play-result-cards {
-  display: flex;
-  gap: 0.3rem;
-  align-items: center;
-  flex-wrap: wrap;
-  justify-content: center;
+  display: flex; gap: 0.2rem; align-items: center;
+  flex-wrap: wrap; justify-content: center;
 }
 .play-result-cards .card {
-  width: 44px; height: 64px;
+  width: 38px; height: 56px;
   animation: card-fly 0.25s ease forwards;
-  pointer-events: none;
-  flex-shrink: 0;
+  pointer-events: none; flex-shrink: 0;
 }
-.play-result-cards .card-val { font-size: 0.6rem; }
-.play-result-cards .pip { font-size: 0.55rem; }
-.play-result-cards .card-face-icon { font-size: 1.2rem; }
+.play-result-cards .card-val { font-size: 0.58rem; }
+.play-result-cards .pip { font-size: 0.72rem; }
+.play-result-cards .card-face-icon { font-size: 1.1rem; }
 .play-result-cards .card-corner { top: 2px; left: 3px; }
 .play-result-cards .card-corner-br { bottom: 2px; right: 3px; }
+.play-result-cards .card-suit-small { font-size: 0.5rem; }
 .play-result-cards .card:nth-child(2) { animation-delay: 0.05s; opacity: 0; }
 .play-result-cards .card:nth-child(3) { animation-delay: 0.10s; opacity: 0; }
 .play-result-cards .card:nth-child(4) { animation-delay: 0.15s; opacity: 0; }
 .play-result-cards .card:nth-child(5) { animation-delay: 0.20s; opacity: 0; }
 .play-result-cards .card:nth-child(6) { animation-delay: 0.25s; opacity: 0; }
-.play-result-arrow { font-size: 1rem; color: var(--gold2); }
+.play-result-arrow { font-size: 0.8rem; color: var(--gold2); }
 .play-result-label {
-  font-family: 'Cinzel', serif; font-size: 0.85rem; font-weight: 700;
-  color: var(--gold2); white-space: nowrap;
+  font-family: 'Cinzel', serif; font-size: 0.75rem; font-weight: 700;
+  color: var(--gold2); text-align: center;
 }
-.play-result-label.scopa { color: #ffe066; }
+.play-result-label.scopa { color: #ffe066; font-size: 0.9rem; }
 .play-result-label.trail { color: var(--text-dim); }
 @keyframes card-fly {
-  from { transform: scale(0.5) translateY(-10px); opacity: 0; }
+  from { transform: scale(0.5) translateY(-8px); opacity: 0; }
   to   { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+/* ── Circled winner in scoring table ───────────────────────────────── */
+.round-breakdown td strong {
+  display: inline-flex;
+  align-items: center; justify-content: center;
+  min-width: 1.6em; min-height: 1.6em;
+  border: 2px solid var(--gold2);
+  border-radius: 50%;
+  padding: 0.05em 0.2em;
+  color: var(--gold2);
+  font-weight: 700;
+  font-size: 0.9em;
+  line-height: 1;
 }
 
 /* ── Game Log ──────────────────────────────────────────────────────── */
 .game-log {
   position: absolute;
-  top: 42px; right: 0;
-  width: 130px;
-  background: rgba(0,0,0,0.5);
+  top: 200px; right: 0;
+  width: 128px;
+  background: rgba(0,0,0,0.45);
   border-left: 1px solid rgba(201,146,42,0.15);
   padding: 0.4rem 0.5rem;
   z-index: 10;

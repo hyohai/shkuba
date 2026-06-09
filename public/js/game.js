@@ -1,14 +1,19 @@
 /* ── Card Rendering ─────────────────────────────────────────────────── */
 const SUIT_SYM = { coins:'♦', cups:'♥', swords:'♠', clubs:'♣' };
 const VAL_LABEL = { 1:'A', 8:'Q', 9:'J', 10:'K' };
-
-const PIP_LAYOUTS = {
-  1:[[4,2]],2:[[2,2],[6,2]],3:[[2,2],[4,2],[6,2]],
-  4:[[2,1],[2,3],[6,1],[6,3]],5:[[2,1],[2,3],[4,2],[6,1],[6,3]],
-  6:[[2,1],[2,3],[4,1],[4,3],[6,1],[6,3]],
-  7:[[2,1],[2,3],[3,2],[4,1],[4,3],[6,1],[6,3]],
-};
 const FACE_ICONS = { 8:['♛','QUEEN'], 9:['♞','JACK'], 10:['♚','KING'] };
+
+// Pip positions as [left%, top%] — standard playing card layout
+// true = flip 180° (bottom-half pips)
+const PIP_POS = {
+  1: [[50,50]],
+  2: [[50,22],[50,78,true]],
+  3: [[50,22],[50,50],[50,78,true]],
+  4: [[28,22],[72,22],[28,78,true],[72,78,true]],
+  5: [[28,22],[72,22],[50,50],[28,78,true],[72,78,true]],
+  6: [[28,22],[72,22],[28,50],[72,50],[28,78,true],[72,78,true]],
+  7: [[28,22],[72,22],[50,35],[28,50],[72,50],[28,78,true],[72,78,true]],
+};
 
 function valLabel(v) { return VAL_LABEL[v] || String(v); }
 
@@ -18,15 +23,22 @@ function makeCardEl(card, extra='') {
   const sym = SUIT_SYM[card.suit];
   const vl = valLabel(card.value);
   const corner = `<div class="card-corner"><span class="card-val">${vl}</span><span class="card-suit-small">${sym}</span></div><div class="card-corner-br"><span class="card-val">${vl}</span><span class="card-suit-small">${sym}</span></div>`;
+
   if (card.value >= 8) {
-    const [icon, title] = FACE_ICONS[card.value];
-    el.innerHTML = corner + `<div class="card-face"><div class="card-face-stripe top">${sym} ${sym} ${sym}</div><div class="card-face-icon">${icon}</div><div class="card-face-title">${title}</div><div class="card-face-stripe bot">${sym} ${sym} ${sym}</div></div>`;
+    const [icon, label] = FACE_ICONS[card.value];
+    el.innerHTML = corner + `<div class="card-face">
+      <div class="card-face-suits top">${sym} ${sym} ${sym}</div>
+      <div class="card-face-icon">${icon}</div>
+      <div class="card-face-label">${label}</div>
+      <div class="card-face-suits bot">${sym} ${sym} ${sym}</div>
+    </div>`;
   } else {
-    const layout = PIP_LAYOUTS[card.value] || [[4,2]];
-    let pipsHtml = `<div class="card-pips" style="grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(7,1fr)">`;
-    for (const [r,c] of layout) {
-      const rot = r > 4 ? 'transform:rotate(180deg)' : '';
-      pipsHtml += `<span class="pip" style="grid-row:${r};grid-column:${c};${rot}">${sym}</span>`;
+    const positions = PIP_POS[card.value] || [[50,50]];
+    let pipsHtml = '<div class="card-pips">';
+    for (const pos of positions) {
+      const [lp, tp, flip] = pos;
+      const cls = flip ? 'pip flip' : 'pip';
+      pipsHtml += `<span class="${cls}" style="left:${lp}%;top:${tp}%">${sym}</span>`;
     }
     pipsHtml += '</div>';
     el.innerHTML = corner + pipsHtml;
