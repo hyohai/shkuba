@@ -5,7 +5,12 @@ const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server, {
+  pingInterval: 10000,   // send ping every 10s (default 25s)
+  pingTimeout:  20000,   // disconnect if no pong within 20s (default 20s)
+  cors: { origin: '*' }, // needed for some hosting setups
+  transports: ['websocket', 'polling'], // try websocket first, fall back to polling
+});
 app.use(express.static(path.join(__dirname, 'public')));
 
 const rooms = {};
@@ -196,7 +201,15 @@ function advanceTurn(room, code) {
   log(code, `advanceTurn called`);
   const allEmpty=room.players.every(p=>p.hand.length===0);
   if (allEmpty) {
-    if (room.deck.length>0) { log(code,'all hands empty, dealing'); dealCards(room); return; }
+    if (room.deck.length>0) {
+      if(room.players[room.dealerIndex].isBot){
+        log(code,'all hands empty, bot dealer auto-dealing'); dealCards(room);
+      } else {
+        log(code,'all hands empty, waiting for dealer to deal');
+        room.phase='waiting_deal'; broadcast(code);
+      }
+      return;
+    }
     if (room.lastCapturePlayerIndex!==null && room.table.length>0) {
       const lp=room.players[room.lastCapturePlayerIndex];
       const rem=[...room.table]; room.table=[];
@@ -338,6 +351,20 @@ io.on('connection',(socket)=>{
     socket.emit('room_joined',{code});
     broadcast(code);
   });
+  socket.on('rejoin_room',({code,name})=>{
+    const room=getRoom(code);
+    if(!room) return socket.emit('error',{message:'Room no longer exists'});
+    const player=room.players.find(p=>p.name===name&&!p.isBot);
+    if(player){
+      log(code,`${name} rejoined (new socket ${socket.id})`);
+      player.id=socket.id;
+      socket.join(code);
+      socket.emit('room_joined',{code});
+      broadcast(code);
+    } else {
+      socket.emit('error',{message:'Could not rejoin'});
+    }
+  });
   socket.on('add_bot',({code})=>{
     const room=getRoom(code); if(!room||room.phase!=='lobby') return;
     if(!room.players.find(p=>p.id===socket.id)?.isHost) return;
@@ -388,15 +415,35 @@ io.on('connection',(socket)=>{
     if(room.players[room.dealerIndex].id!==socket.id) return;
     room.deck=shuffleDeck(room.deck); room.pendingShuffle=false; room.pendingCut=true; room.phase='cut';
     const n=room.players.length, ci=(room.dealerIndex-1+n)%n;
-    if(room.players[ci].isBot){room.deck=cutDeck(room.deck);room.pendingCut=false;dealCards(room);triggerBotIfNeeded(room,code);}
+    if(room.players[ci].isBot){
+      room.deck=cutDeck(room.deck); room.pendingCut=false;
+      // Dealer is human but cutter was bot — now wait for dealer to tap pile
+      // But if dealer is also bot, auto-deal
+      if(room.players[room.dealerIndex].isBot){
+        dealCards(room); triggerBotIfNeeded(room,code);
+      } else {
+        room.phase='waiting_deal';
+      }
+    }
     broadcast(code);
   });
   socket.on('cut_done',({code})=>{
     const room=getRoom(code); if(!room||room.phase!=='cut') return;
     const n=room.players.length, ci=(room.dealerIndex-1+n)%n;
     if(room.players[ci].id!==socket.id) return;
-    room.deck=cutDeck(room.deck); room.pendingCut=false; dealCards(room);
-    triggerBotIfNeeded(room,code); broadcast(code);
+    room.deck=cutDeck(room.deck); room.pendingCut=false;
+    // If dealer is bot, auto-deal; otherwise wait for dealer to tap pile
+    if(room.players[room.dealerIndex].isBot){
+      dealCards(room); triggerBotIfNeeded(room,code);
+    } else {
+      room.phase='waiting_deal';
+    }
+    broadcast(code);
+  });
+  socket.on('deal_cards',({code})=>{
+    const room=getRoom(code); if(!room||room.phase!=='waiting_deal') return;
+    if(room.players[room.dealerIndex].id!==socket.id) return;
+    dealCards(room); broadcast(code);
   });
   socket.on('play_card',({code,cardIndex,captureIndices})=>{
     const room=getRoom(code); if(!room||room.phase!=='playing') return;

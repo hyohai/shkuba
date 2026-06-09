@@ -485,47 +485,78 @@ input[type="text"]::placeholder { color: var(--text-dim); }
 .suit-clubs .card-val, .suit-clubs .pip, .suit-clubs .card-face-icon,
 .suit-clubs .card-face-label, .suit-clubs .card-face-suits { color: #1a1a1a; }
 
-.table-top-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-  margin-bottom: 0.4rem;
+.table-top-row { display: none; } /* removed */
+
+/* ── Play area layout ───────────────────────────────────────────────── */
+.play-area {
+  flex: 1; display: flex; flex-direction: row; align-items: stretch;
+  overflow: hidden; min-height: 0;
 }
-.deck-count {
-  font-family: 'Cinzel', serif;
-  font-size: 0.9rem;
-  color: var(--gold2);
-  background: rgba(0,0,0,0.3);
-  border: 1px solid var(--gold-dim);
-  border-radius: 999px;
-  padding: 0.2rem 0.7rem;
-  letter-spacing: 0.05em;
+
+/* Deck pile */
+.deck-area {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 0.5rem 0.4rem 0.5rem 0.6rem; gap: 0.4rem;
+  min-width: 74px; max-width: 74px;
+  border-right: 1px solid rgba(201,146,42,0.12);
 }
-.deck-count.empty { color: var(--text-dim); border-color: rgba(255,255,255,0.1); }
+.deck-count-label {
+  font-family: 'Cinzel', serif; font-size: 1.3rem; font-weight: 700;
+  color: var(--gold2); text-shadow: 0 0 12px rgba(232,184,75,0.4); line-height: 1;
+}
+.deck-pile {
+  position: relative; width: 56px; height: 82px;
+  transition: transform 0.15s;
+}
+.deck-pile.dealable { cursor: pointer; }
+.deck-pile.dealable:hover { transform: scale(1.07); }
+.deck-pile.dealable:active { transform: scale(0.96); }
+.deck-pile.empty { opacity: 0.18; pointer-events: none; }
+.deck-card-back {
+  position: absolute; width: 54px; height: 80px;
+  background: linear-gradient(135deg, #1a4a2a 0%, #0d2414 100%);
+  border: 1px solid rgba(201,146,42,0.5); border-radius: 6px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+}
+.deck-card-back::after {
+  content: ''; position: absolute; inset: 5px;
+  border: 1px solid rgba(201,146,42,0.2); border-radius: 3px;
+}
+.deck-card-back:nth-child(1) { top: 0; left: 2px; }
+.deck-card-back:nth-child(2) { top: 2px; left: 1px; }
+.deck-card-back:nth-child(3) { top: 4px; left: 0; }
+@keyframes deal-flash {
+  0%   { box-shadow: 0 0 0 0 rgba(232,184,75,0); }
+  40%  { box-shadow: 0 0 0 8px rgba(232,184,75,0.5); }
+  100% { box-shadow: 0 0 0 0 rgba(232,184,75,0); }
+}
+.deck-pile.dealing .deck-card-back:nth-child(3) { animation: deal-flash 0.4s ease; }
+.deck-deal-hint {
+  font-family: 'Cinzel', serif; font-size: 0.55rem; letter-spacing: 0.08em;
+  color: var(--gold2); text-align: center; line-height: 1.3;
+  animation: pulse-hint 1.5s ease-in-out infinite;
+}
+
+/* Table area */
+.table-area {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 0.5rem 0.5rem; position: relative;
+}
+
 .last-capture-hint {
-  font-family: 'Cinzel', serif;
-  font-size: 0.75rem;
-  color: var(--gold2);
-  text-align: center;
-  margin-top: 0.4rem;
-  padding: 0.2rem 0.75rem;
-  background: rgba(201,146,42,0.12);
-  border-radius: 999px;
+  font-family: 'Cinzel', serif; font-size: 0.75rem; color: var(--gold2);
+  text-align: center; margin-top: 0.4rem; padding: 0.2rem 0.75rem;
+  background: rgba(201,146,42,0.12); border-radius: 999px;
   border: 1px solid rgba(201,146,42,0.25);
   animation: pulse-hint 2s ease-in-out infinite;
 }
-@keyframes pulse-hint {
-  0%, 100% { opacity: 0.7; } 50% { opacity: 1; }
-}
+@keyframes pulse-hint { 0%, 100% { opacity: 0.7; } 50% { opacity: 1; } }
 
 @keyframes knock {
   0%   { box-shadow: inset 0 0 0 3px var(--gold2); }
   100% { box-shadow: none; }
 }
-.table-area.knock {
-  animation: knock 0.25s ease;
-}
+.table-area.knock { animation: knock 0.25s ease; }
 @keyframes deal-in {
   from { transform: scale(0.3) translateY(-40px); opacity: 0; }
   to   { transform: scale(1) translateY(0); opacity: 1; }
@@ -533,10 +564,7 @@ input[type="text"]::placeholder { color: var(--text-dim); }
 .card.deal-anim { animation: deal-in 0.3s ease forwards; }
 
 /* Enlarge action buttons */
-.capture-bar .btn-sm {
-  padding: 0.75rem 1.4rem;
-  font-size: 0.9rem;
-}
+.capture-bar .btn-sm { padding: 0.75rem 1.4rem; font-size: 0.9rem; }
 .capture-hint { font-size: 0.85rem; }
 .capture-bar {
   display: flex; align-items: center; gap: 0.75rem;

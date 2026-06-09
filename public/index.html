@@ -81,14 +81,25 @@
     <div class="scores-strip" id="scores-strip"></div>
   </div>
 
-  <!-- Table area -->
-  <div class="table-area">
-    <div class="table-top-row">
-      <div class="table-label">Table</div>
-      <div class="deck-count" id="deck-count">🂠 <span id="deck-count-num">0</span></div>
+  <!-- Main play area: deck pile left + table center -->
+  <div class="play-area">
+    <!-- Deck pile (left) -->
+    <div class="deck-area" id="deck-area">
+      <div class="deck-count-label" id="deck-count-num">0</div>
+      <div class="deck-pile" id="deck-pile">
+        <div class="deck-card-back"></div>
+        <div class="deck-card-back"></div>
+        <div class="deck-card-back"></div>
+      </div>
+      <div class="deck-deal-hint hidden" id="deck-deal-hint">Tap to deal</div>
     </div>
-    <div class="table-cards" id="table-cards"></div>
-    <div class="last-capture-hint hidden" id="last-capture-hint"></div>
+
+    <!-- Table -->
+    <div class="table-area">
+      <div class="table-label">Table</div>
+      <div class="table-cards" id="table-cards"></div>
+      <div class="last-capture-hint hidden" id="last-capture-hint"></div>
+    </div>
   </div>
 
   <!-- Turn indicator -->

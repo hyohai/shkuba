@@ -47,9 +47,30 @@ function makeCardEl(card, extra='') {
 }
 
 /* ── State ───────────────────────────────────────────────────────────── */
-const socket = io();
+const socket = io({
+  reconnection: true,
+  reconnectionDelay: 1000,
+  reconnectionAttempts: 10,
+});
 let myCode = null;
 let gameState = null;
+let myName = null; // track name for rejoin
+
+// Auto-rejoin room after reconnect
+socket.on('reconnect', () => {
+  console.log('[socket] reconnected');
+  if (myCode && myName) {
+    // Try to rejoin — server will restore state if room still exists
+    socket.emit('rejoin_room', { code: myCode, name: myName });
+  }
+});
+socket.on('disconnect', (reason) => {
+  console.log('[socket] disconnected:', reason);
+  showToast('Connection lost — reconnecting…', 4000);
+});
+socket.on('connect', () => {
+  console.log('[socket] connected:', socket.id);
+});
 let selectedHandIndex = null;
 let selectedTableIndices = new Set();
 
@@ -74,6 +95,7 @@ function showToast(msg, duration = 2500) {
 document.getElementById('btn-host').addEventListener('click', () => {
   const name = document.getElementById('input-name').value.trim();
   if (!name) return showError('lobby-error', 'Enter your name first');
+  myName = name;
   socket.emit('create_room', { name });
 });
 
@@ -82,6 +104,7 @@ document.getElementById('btn-join').addEventListener('click', () => {
   const code = document.getElementById('input-code').value.trim();
   if (!name) return showError('lobby-error', 'Enter your name first');
   if (!code || code.length !== 4) return showError('lobby-error', 'Enter a 4-digit room code');
+  myName = name;
   socket.emit('join_room', { name, code });
 });
 
@@ -198,12 +221,13 @@ socket.on('player_replaced', ({ name, botName }) => {
 
 function renderState(state) {
   switch (state.phase) {
-    case 'lobby':      renderWaiting(state); break;
-    case 'shuffle':    renderCeremony(state); break;
-    case 'cut':        renderCeremony(state); break;
-    case 'playing':    renderGame(state); break;
-    case 'round_end':  renderRoundEnd(state); break;
-    case 'game_end':   renderGameEnd(state); break;
+    case 'lobby':        renderWaiting(state); break;
+    case 'shuffle':      renderCeremony(state); break;
+    case 'cut':          renderCeremony(state); break;
+    case 'waiting_deal': renderGame(state); break; // show game screen, pile is tappable
+    case 'playing':      renderGame(state); break;
+    case 'round_end':    renderRoundEnd(state); break;
+    case 'game_end':     renderGameEnd(state); break;
   }
 }
 
@@ -365,27 +389,39 @@ document.getElementById('btn-cut').addEventListener('click', () => {
 /* ── Game ────────────────────────────────────────────────────────────── */
 function renderGame(state) {
   showScreen('screen-game');
-  if (state.myIndex !== state.currentPlayerIndex) {
+  if (state.phase === 'playing' && state.myIndex !== state.currentPlayerIndex) {
     selectedHandIndex = null;
     selectedTableIndices.clear();
     document.getElementById('capture-bar').classList.add('hidden');
     updateThrowButton(false);
   }
-
   renderScores(state);
   renderTable(state);
   renderHand(state);
   renderTurnBanner(state);
-  renderDeckCount(state);
+  renderDeckPile(state);
   renderLastCaptureHint(state);
 }
 
-function renderDeckCount(state) {
-  const num = document.getElementById('deck-count-num');
-  const el = document.getElementById('deck-count');
-  if (!num || !el) return;
-  num.textContent = state.deckCount;
-  el.classList.toggle('empty', state.deckCount === 0);
+function renderDeckPile(state) {
+  const numEl = document.getElementById('deck-count-num');
+  const pile  = document.getElementById('deck-pile');
+  const hint  = document.getElementById('deck-deal-hint');
+  if (!numEl || !pile || !hint) return;
+  numEl.textContent = state.deckCount;
+  const isDealer = state.myIndex === state.dealerIndex;
+  const canDeal  = state.phase === 'waiting_deal' && isDealer;
+  pile.classList.toggle('empty', state.deckCount === 0);
+  pile.classList.toggle('dealable', canDeal);
+  if (canDeal) {
+    hint.classList.remove('hidden');
+    hint.textContent = 'Tap to deal';
+  } else if (state.phase === 'waiting_deal' && !isDealer) {
+    hint.classList.remove('hidden');
+    hint.textContent = (state.players[state.dealerIndex]?.name || '') + '\ndealing…';
+  } else {
+    hint.classList.add('hidden');
+  }
 }
 
 function renderLastCaptureHint(state) {
@@ -469,13 +505,15 @@ function renderHand(state) {
 
 function renderTurnBanner(state) {
   const banner = document.getElementById('turn-banner');
+  if (state.phase === 'waiting_deal') {
+    const isDealer = state.myIndex === state.dealerIndex;
+    const dealerName = state.players[state.dealerIndex]?.name || '';
+    banner.textContent = isDealer ? '⭐ Tap the deck to deal' : `Waiting for ${dealerName} to deal…`;
+    return;
+  }
   const cp = state.players[state.currentPlayerIndex];
   if (!cp) return;
-  if (state.myIndex === state.currentPlayerIndex) {
-    banner.textContent = '⭐ Your turn';
-  } else {
-    banner.textContent = `${cp.name}'s turn`;
-  }
+  banner.textContent = state.myIndex === state.currentPlayerIndex ? '⭐ Your turn' : `${cp.name}'s turn`;
 }
 
 /* ── Interaction ─────────────────────────────────────────────────────── */
@@ -772,6 +810,15 @@ function renderRoundEnd(state) {
   if (isHost) nextBtn.classList.remove('hidden');
   else nextBtn.classList.add('hidden');
 }
+
+document.getElementById('deck-pile').addEventListener('click', () => {
+  if (!gameState || gameState.phase !== 'waiting_deal') return;
+  if (gameState.myIndex !== gameState.dealerIndex) return;
+  const pile = document.getElementById('deck-pile');
+  pile.classList.add('dealing');
+  setTimeout(() => pile.classList.remove('dealing'), 450);
+  socket.emit('deal_cards', { code: myCode });
+});
 
 document.getElementById('btn-next-round').addEventListener('click', () => {
   socket.emit('next_round', { code: myCode });
