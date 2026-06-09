@@ -205,10 +205,12 @@ function advanceTurn(room, code) {
       io.to(code).emit('play_result',{playerName:lp.name,playedCard:null,capturedCards:rem,isScopa:false,isTrail:false,isLastCapture:true});
       setBusy(room,true);
       setTimeout(()=>{
-        setBusy(room,false);
-        room.roundScores=computeRoundScores(room);
-        room.phase=checkGameOver(room)?'game_end':'round_end';
-        broadcast(code);
+        try {
+          setBusy(room,false);
+          room.roundScores=computeRoundScores(room);
+          room.phase=checkGameOver(room)?'game_end':'round_end';
+          broadcast(code);
+        } catch(e) { console.error('[last-capture timeout]',e); }
       },2500);
       return;
     }
@@ -248,9 +250,11 @@ function executeCapture(room, playerIndex, cardIndex, captureIndices) {
   broadcast(room.code);
   setBusy(room,true);
   setTimeout(()=>{
-    setBusy(room,false);
-    advanceTurn(room,room.code);
-    broadcast(room.code);
+    try {
+      setBusy(room,false);
+      advanceTurn(room,room.code);
+      broadcast(room.code);
+    } catch(e) { console.error('[executeCapture timeout]',e); }
   },2500);
 }
 
@@ -283,9 +287,11 @@ function botPlayTurn(room, code) {
     broadcast(code);
     setBusy(room,true);
     setTimeout(()=>{
-      setBusy(room,false);
-      advanceTurn(room,code);
-      broadcast(code);
+      try {
+        setBusy(room,false);
+        advanceTurn(room,code);
+        broadcast(code);
+      } catch(e) { console.error('[bot-trail timeout]',e); }
     },2000);
   }
 }
@@ -403,21 +409,33 @@ io.on('connection',(socket)=>{
     const possibleCaptures=findCaptures(card.value,room.table);
     const mustCapture=possibleCaptures.length>0;
     if(mustCapture){
-      const directIdx=room.table.findIndex(t=>t.value===card.value);
-      if(directIdx!==-1) captureIndices=[directIdx];
-      else {
+      // Count how many table cards exactly match the played card's value
+      const directMatches=room.table.reduce((acc,t,i)=>t.value===card.value?[...acc,i]:acc,[]);
+      if(directMatches.length===1){
+        // Exactly one direct match — forced, no choice
+        captureIndices=[directMatches[0]];
+      } else if(directMatches.length>1){
+        // Multiple direct matches — player must pick one of them (shape matters)
+        // Validate that captureIndices is a single card from the direct matches
+        if(!captureIndices||captureIndices.length!==1||!directMatches.includes(captureIndices[0])){
+          // Ask client to choose which matching card to take
+          return socket.emit('capture_error',{message:'Choose which card to capture',directMatches});
+        }
+        // Valid single direct match chosen — proceed
+      } else {
+        // No direct match — sum combo
         if(!captureIndices||captureIndices.length===0) captureIndices=possibleCaptures[0];
-        if(!possibleCaptures.some(combo=>combo.length===captureIndices.length&&combo.every(i=>captureIndices.includes(i))))
-          return socket.emit('error',{message:'Invalid capture'});
+        if(!possibleCaptures.some(combo=>combo.length===captureIndices.length&&combo.every(i=>captureIndices.includes(i)))){
+          return socket.emit('capture_error',{message:'Invalid capture — those cards don\'t add up'});
+        }
       }
       executeCapture(room,pi,cardIndex,captureIndices);
     } else {
       player.hand.splice(cardIndex,1); room.table.push(card);
       log(code,`${player.name} trails ${cardStr(card)}`);
       io.to(code).emit('play_result',{playerName:player.name,playedCard:card,capturedCards:[],isScopa:false,isTrail:true});
-      io.to(code).emit('game_log',{text:`${player.name} throws ${cardStr(card)}`});
       setBusy(room,true);
-      setTimeout(()=>{setBusy(room,false);advanceTurn(room,code);broadcast(code);},2000);
+      setTimeout(()=>{try{setBusy(room,false);advanceTurn(room,code);broadcast(code);}catch(e){console.error("[trail timeout]",e);}},2000);
     }
   });
   socket.on('next_round',({code})=>{
@@ -427,31 +445,40 @@ io.on('connection',(socket)=>{
     triggerBotIfNeeded(room,code);
   });
   socket.on('disconnect',()=>{
-    for (const code in rooms) {
-      const room=rooms[code];
-      const idx=room.players.findIndex(p=>p.id===socket.id);
-      if(idx!==-1){
-        const leaving=room.players[idx];
-        log(code,`${leaving.name} disconnected`);
-        io.to(code).emit('player_left',{name:leaving.name});
-        if(room.phase!=='lobby'&&room.teams!==null){
-          const botNames=['Bot Avi','Bot Bina','Bot Gal','Bot Dan'];
-          const used=room.players.map(p=>p.name);
-          const botName=botNames.find(n=>!used.includes(n))||`Bot ${idx}`;
-          room.players[idx]={id:`bot_${Date.now()}`,name:botName,isHost:leaving.isHost,isBot:true,
-            score:leaving.score,hand:leaving.hand,captured:leaving.captured,scopas:leaving.scopas,teamIndex:leaving.teamIndex};
-          if(leaving.isHost){const nh=room.players.find(p=>!p.isBot);if(nh){nh.isHost=true;room.players[idx].isHost=false;}}
-          io.to(code).emit('player_replaced',{name:leaving.name,botName});
-          log(code,`replaced ${leaving.name} with bot ${botName}`);
-          if(room.phase==='playing'&&room.currentPlayerIndex===idx&&!room.busy) scheduleBotWatchdog(room,code,room.players[idx].id);
-        } else {
-          room.players.splice(idx,1);
-          if(room.players.length===0){delete rooms[code];return;}
-          if(!room.players.find(p=>p.isHost)) room.players[0].isHost=true;
-          if(room.phase!=='lobby'&&room.players.filter(p=>!p.isBot).length<=1) room.phase='game_end';
+    try {
+      for (const code in rooms) {
+        const room=rooms[code];
+        const idx=room.players.findIndex(p=>p.id===socket.id);
+        if(idx!==-1){
+          const leaving=room.players[idx];
+          log(code,`${leaving.name} disconnected`);
+          io.to(code).emit('player_left',{name:leaving.name});
+          if(room.phase!=='lobby'&&room.teams!==null){
+            const botNames=['Bot Avi','Bot Bina','Bot Gal','Bot Dan'];
+            const used=room.players.map(p=>p.name);
+            const botName=botNames.find(n=>!used.includes(n))||`Bot ${idx}`;
+            const newBot={id:`bot_${Date.now()}`,name:botName,isHost:leaving.isHost,isBot:true,
+              score:leaving.score,hand:[...(leaving.hand||[])],captured:[...(leaving.captured||[])],
+              scopas:leaving.scopas||0,teamIndex:leaving.teamIndex};
+            room.players[idx]=newBot;
+            if(leaving.isHost){const nh=room.players.find(p=>!p.isBot);if(nh){nh.isHost=true;newBot.isHost=false;}}
+            io.to(code).emit('player_replaced',{name:leaving.name,botName});
+            log(code,`replaced ${leaving.name} with bot ${botName}`);
+            // Only trigger bot if it's their turn AND not busy (busy timeout will trigger it)
+            if(room.phase==='playing'&&room.currentPlayerIndex===idx&&!room.busy){
+              scheduleBotWatchdog(room,code,newBot.id);
+            }
+          } else {
+            room.players.splice(idx,1);
+            if(room.players.length===0){delete rooms[code];return;}
+            if(!room.players.find(p=>p.isHost)) room.players[0].isHost=true;
+            if(room.phase!=='lobby'&&room.players.filter(p=>!p.isBot).length<=1) room.phase='game_end';
+          }
+          broadcast(code); break;
         }
-        broadcast(code); break;
       }
+    } catch(err) {
+      console.error('[disconnect handler error]', err);
     }
   });
 });

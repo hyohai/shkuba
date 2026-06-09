@@ -480,7 +480,6 @@ function renderTurnBanner(state) {
 
 /* ── Interaction ─────────────────────────────────────────────────────── */
 function onHandCardClick(index) {
-  // Block plays while capture animation is showing
   if (!document.getElementById('play-result-overlay').classList.contains('hidden')) return;
   const state = gameState;
   if (!state || state.myIndex !== state.currentPlayerIndex) return;
@@ -491,7 +490,6 @@ function onHandCardClick(index) {
   if (captures.length === 0) {
     // No capture possible: select card and show "Throw" button
     if (selectedHandIndex === index) {
-      // Already selected — deselect
       selectedHandIndex = null;
       updateThrowButton(false);
     } else {
@@ -502,15 +500,38 @@ function onHandCardClick(index) {
     return;
   }
 
-  // Rule: if a direct value match exists on the table, auto-capture it — no choice
-  const directMatchIdx = state.table.findIndex(t => t.value === card.value);
-  if (directMatchIdx !== -1) {
-    socket.emit('play_card', { code: myCode, cardIndex: index, captureIndices: [directMatchIdx] });
+  // Count direct value matches on table
+  const directMatches = state.table.reduce((acc, t, i) => t.value === card.value ? [...acc, i] : acc, []);
+
+  if (directMatches.length === 1) {
+    // Exactly one direct match — forced, auto-capture
+    socket.emit('play_card', { code: myCode, cardIndex: index, captureIndices: [directMatches[0]] });
     return;
   }
 
-  // Only sum-combos: single unambiguous option → auto
+  if (directMatches.length > 1) {
+    // Multiple direct matches — select the card first, then player taps which table card to take
+    if (selectedHandIndex === index) {
+      selectedHandIndex = null;
+      selectedTableIndices.clear();
+      document.getElementById('capture-bar').classList.add('hidden');
+      document.getElementById('btn-confirm-capture').classList.add('hidden');
+      document.getElementById('btn-throw-card').classList.add('hidden');
+    } else {
+      selectedHandIndex = index;
+      selectedTableIndices.clear();
+      document.getElementById('capture-bar').classList.remove('hidden');
+      document.getElementById('btn-confirm-capture').classList.remove('hidden');
+      document.getElementById('btn-throw-card').classList.add('hidden');
+      document.querySelector('.capture-hint').textContent = 'Choose which card to capture';
+    }
+    renderGame(state);
+    return;
+  }
+
+  // No direct match — only sum-combos
   if (captures.length === 1) {
+    // Single unambiguous sum combo → auto
     socket.emit('play_card', { code: myCode, cardIndex: index, captureIndices: captures[0] });
     return;
   }
@@ -525,7 +546,6 @@ function onHandCardClick(index) {
   } else {
     selectedHandIndex = index;
     selectedTableIndices.clear();
-    // Show capture bar with confirm button (not throw button)
     document.getElementById('capture-bar').classList.remove('hidden');
     document.getElementById('btn-confirm-capture').classList.remove('hidden');
     document.getElementById('btn-throw-card').classList.add('hidden');
@@ -533,6 +553,13 @@ function onHandCardClick(index) {
   }
   renderGame(state);
 }
+
+// Handle capture_error: show message, keep selection so player can try again
+socket.on('capture_error', ({ message }) => {
+  showToast(message, 2500);
+  // Re-render to restore card selection UI without resetting it
+  if (gameState) renderGame(gameState);
+});
 
 function updateThrowButton(show) {
   const bar = document.getElementById('capture-bar');
@@ -557,10 +584,23 @@ function onTableCardClick(index) {
   if (!state || selectedHandIndex === null) return;
   const myHand = state.players[state.myIndex].hand;
   const card = myHand[selectedHandIndex];
+
+  // Check if we're in "choose direct match" mode
+  const directMatches = state.table.reduce((acc, t, i) => t.value === card.value ? [...acc, i] : acc, []);
+  if (directMatches.length > 1) {
+    // Player taps a direct-match table card → send immediately
+    if (directMatches.includes(index)) {
+      socket.emit('play_card', { code: myCode, cardIndex: selectedHandIndex, captureIndices: [index] });
+      selectedHandIndex = null;
+      selectedTableIndices.clear();
+      document.getElementById('capture-bar').classList.add('hidden');
+    }
+    return;
+  }
+
+  // Sum-combo mode: toggle table card selection
   const captures = findCaptures(card.value, state.table);
   if (captures.length === 0) return;
-
-  // Toggle selection
   if (selectedTableIndices.has(index)) {
     selectedTableIndices.delete(index);
   } else {
@@ -571,7 +611,21 @@ function onTableCardClick(index) {
 
 document.getElementById('btn-throw-card').addEventListener('click', () => {
   if (selectedHandIndex === null) return;
-  socket.emit('play_card', { code: myCode, cardIndex: selectedHandIndex, captureIndices: [] });
+  const cardIndex = selectedHandIndex;
+
+  // Optimistic: immediately move card from hand to table visually
+  if (gameState) {
+    const myPlayer = gameState.players[gameState.myIndex];
+    if (myPlayer && myPlayer.hand && myPlayer.hand[cardIndex]) {
+      const card = myPlayer.hand[cardIndex];
+      // Remove from hand, add to table in local state
+      myPlayer.hand = myPlayer.hand.filter((_, i) => i !== cardIndex);
+      gameState.table = [...gameState.table, card];
+      renderGame(gameState);
+    }
+  }
+
+  socket.emit('play_card', { code: myCode, cardIndex, captureIndices: [] });
   selectedHandIndex = null;
   selectedTableIndices.clear();
   updateThrowButton(false);
