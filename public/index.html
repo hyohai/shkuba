@@ -81,9 +81,18 @@
     <div class="scores-strip" id="scores-strip"></div>
   </div>
 
-  <!-- Main play area: deck pile left + table center -->
-  <div class="play-area">
-    <!-- Deck pile (left) -->
+  <!-- Table (full width, grows to fill space) -->
+  <div class="table-area">
+    <div class="table-label">Table</div>
+    <div class="table-cards" id="table-cards"></div>
+    <div class="last-capture-hint hidden" id="last-capture-hint"></div>
+  </div>
+
+  <!-- Turn indicator -->
+  <div class="turn-banner" id="turn-banner"></div>
+
+  <!-- Bottom: deck pile (left) + hand (center) -->
+  <div class="bottom-area">
     <div class="deck-area" id="deck-area">
       <div class="deck-count-label" id="deck-count-num">0</div>
       <div class="deck-pile" id="deck-pile">
@@ -93,22 +102,10 @@
       </div>
       <div class="deck-deal-hint hidden" id="deck-deal-hint">Tap to deal</div>
     </div>
-
-    <!-- Table -->
-    <div class="table-area">
-      <div class="table-label">Table</div>
-      <div class="table-cards" id="table-cards"></div>
-      <div class="last-capture-hint hidden" id="last-capture-hint"></div>
+    <div class="hand-area">
+      <div class="hand-label">Your hand</div>
+      <div class="hand-cards" id="hand-cards"></div>
     </div>
-  </div>
-
-  <!-- Turn indicator -->
-  <div class="turn-banner" id="turn-banner"></div>
-
-  <!-- Player hand -->
-  <div class="hand-area">
-    <div class="hand-label">Your hand</div>
-    <div class="hand-cards" id="hand-cards"></div>
   </div>
 
   <!-- Play result overlay -->

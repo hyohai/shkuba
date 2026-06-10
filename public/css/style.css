@@ -396,20 +396,6 @@ input[type="text"]::placeholder { color: var(--text-dim); }
   min-height: 2rem;
 }
 
-.hand-area {
-  padding: 0.5rem 0.75rem 0.75rem;
-  background: rgba(0,0,0,0.2);
-  border-top: 1px solid rgba(201,146,42,0.15);
-  min-height: 130px;
-  display: flex; flex-direction: column;
-}
-.hand-cards {
-  display: flex;
-  gap: 0.5rem;
-  justify-content: center;
-  flex-wrap: wrap;
-}
-
 /* ── Cards ─────────────────────────────────────────────────────────── */
 .card {
   width: 68px; height: 100px;
@@ -488,17 +474,33 @@ input[type="text"]::placeholder { color: var(--text-dim); }
 .table-top-row { display: none; } /* removed */
 
 /* ── Play area layout ───────────────────────────────────────────────── */
-.play-area {
-  flex: 1; display: flex; flex-direction: row; align-items: stretch;
-  overflow: hidden; min-height: 0;
+.play-area { display: none; } /* removed */
+
+/* Table takes all remaining vertical space */
+.table-area {
+  flex: 1;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 0.5rem 0.75rem; position: relative;
+  overflow: hidden;
 }
 
-/* Deck pile */
+/* Bottom row: deck pile + hand side by side, fixed height */
+.bottom-area {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  border-top: 1px solid rgba(201,146,42,0.15);
+  background: rgba(0,0,0,0.2);
+  flex-shrink: 0;
+}
+
+/* Deck pile (left of hand) */
 .deck-area {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  padding: 0.5rem 0.4rem 0.5rem 0.6rem; gap: 0.4rem;
+  padding: 0.5rem 0.5rem 0.6rem 0.6rem; gap: 0.35rem;
   min-width: 74px; max-width: 74px;
-  border-right: 1px solid rgba(201,146,42,0.12);
+  border-right: 1px solid rgba(201,146,42,0.15);
+  flex-shrink: 0;
 }
 .deck-count-label {
   font-family: 'Cinzel', serif; font-size: 1.3rem; font-weight: 700;
@@ -533,14 +535,16 @@ input[type="text"]::placeholder { color: var(--text-dim); }
 .deck-pile.dealing .deck-card-back:nth-child(3) { animation: deal-flash 0.4s ease; }
 .deck-deal-hint {
   font-family: 'Cinzel', serif; font-size: 0.55rem; letter-spacing: 0.08em;
-  color: var(--gold2); text-align: center; line-height: 1.3;
+  color: var(--gold2); text-align: center; line-height: 1.4; white-space: pre-line;
   animation: pulse-hint 1.5s ease-in-out infinite;
 }
 
-/* Table area */
-.table-area {
-  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-  padding: 0.5rem 0.5rem; position: relative;
+/* Hand area (fills rest of bottom row) */
+.hand-area {
+  flex: 1;
+  padding: 0.5rem 0.75rem 0.75rem;
+  display: flex; flex-direction: column;
+  min-height: 130px;
 }
 
 .last-capture-hint {
