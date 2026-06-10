@@ -48,19 +48,32 @@ function makeCardEl(card, extra='') {
 
 /* ── State ───────────────────────────────────────────────────────────── */
 const socket = io({
+  transports: ['websocket'],  // match server — no polling
   reconnection: true,
   reconnectionDelay: 1000,
-  reconnectionAttempts: 10,
+  reconnectionAttempts: 20,
 });
 let myCode = null;
 let gameState = null;
-let myName = null; // track name for rejoin
+let myName = null;
 
-// Auto-rejoin room after reconnect
+// Reconnect when phone comes back from background / screen unlock
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && !socket.connected) {
+    console.log('[visibility] page visible again, reconnecting...');
+    socket.connect();
+  }
+});
+window.addEventListener('focus', () => {
+  if (!socket.connected) {
+    console.log('[focus] window focused, reconnecting...');
+    socket.connect();
+  }
+});
+
 socket.on('reconnect', () => {
   console.log('[socket] reconnected');
   if (myCode && myName) {
-    // Try to rejoin — server will restore state if room still exists
     socket.emit('rejoin_room', { code: myCode, name: myName });
   }
 });

@@ -6,10 +6,10 @@ const path = require('path');
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-  pingInterval: 10000,   // send ping every 10s (default 25s)
-  pingTimeout:  20000,   // disconnect if no pong within 20s (default 20s)
-  cors: { origin: '*' }, // needed for some hosting setups
-  transports: ['websocket', 'polling'], // try websocket first, fall back to polling
+  pingInterval: 10000,
+  pingTimeout:  20000,
+  cors: { origin: '*' },
+  transports: ['websocket'], // WebSocket only — polling causes 60s timeout on Railway/Render
 });
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -72,30 +72,47 @@ function getRoom(code) { return rooms[code]; }
 
 // ─── View ─────────────────────────────────────────────────────────────────────
 function buildView(room, socketId) {
-  const myIndex = room.players.findIndex(p => p.id === socketId);
-  return {
-    code:room.code, phase:room.phase, myIndex,
-    players: room.players.map((p,i) => ({
-      name:p.name, score:p.score, capturedCount:p.captured.length,
-      scopas:p.scopas, isDealer:i===room.dealerIndex,
-      isCurrentTurn:i===room.currentPlayerIndex,
-      handCount:p.hand.length, hand:i===myIndex?p.hand:null,
-      isHost:p.isHost||false, isBot:p.isBot||false, teamIndex:p.teamIndex??null,
-    })),
-    teams:room.teams, table:room.table,
-    dealerIndex:room.dealerIndex, currentPlayerIndex:room.currentPlayerIndex,
-    deckCount:room.deck.length,
-    pendingShuffle:room.pendingShuffle, pendingCut:room.pendingCut,
-    isLastDeal:room.isLastDeal||false,
-    lastCapturePlayerIndex:room.lastCapturePlayerIndex,
-    roundScores:(['round_end','game_end'].includes(room.phase))?room.roundScores:null,
-  };
+  try {
+    const myIndex = room.players.findIndex(p => p.id === socketId);
+    return {
+      code:room.code, phase:room.phase, myIndex,
+      players: room.players.map((p,i) => ({
+        name:p.name||'?', score:p.score||0,
+        capturedCount:(p.captured||[]).length,
+        scopas:p.scopas||0, isDealer:i===room.dealerIndex,
+        isCurrentTurn:i===room.currentPlayerIndex,
+        handCount:(p.hand||[]).length,
+        hand:i===myIndex?(p.hand||[]):null,
+        isHost:p.isHost||false, isBot:p.isBot||false, teamIndex:p.teamIndex??null,
+      })),
+      teams:room.teams, table:room.table||[],
+      dealerIndex:room.dealerIndex, currentPlayerIndex:room.currentPlayerIndex,
+      deckCount:(room.deck||[]).length,
+      pendingShuffle:room.pendingShuffle||false, pendingCut:room.pendingCut||false,
+      isLastDeal:room.isLastDeal||false,
+      lastCapturePlayerIndex:room.lastCapturePlayerIndex,
+      roundScores:(['round_end','game_end'].includes(room.phase))?room.roundScores:null,
+    };
+  } catch(e) {
+    console.error('[buildView error]', e);
+    return { code:room.code, phase:room.phase, myIndex:-1, players:[], error:true };
+  }
 }
+
 function broadcast(code) {
-  const room = getRoom(code); if (!room) return;
-  for (const p of room.players) {
-    const s = io.sockets.sockets.get(p.id);
-    if (s) s.emit('game_state', buildView(room, p.id));
+  try {
+    const room = getRoom(code);
+    if (!room) return;
+    for (const p of room.players) {
+      try {
+        const s = io.sockets.sockets.get(p.id);
+        if (s) s.emit('game_state', buildView(room, p.id));
+      } catch(e) {
+        console.error(`[broadcast error for player ${p.name}]`, e);
+      }
+    }
+  } catch(e) {
+    console.error('[broadcast outer error]', e);
   }
 }
 
@@ -137,20 +154,25 @@ function dealCards(room) {
   room.phase='playing';
   log(room.code, `dealt set ${room.dealtThisRound}, deckLeft=${room.deck.length}, isLastDeal=${room.isLastDeal}, firstPlayer=${room.players[room.currentPlayerIndex]?.name}`);
   io.to(room.code).emit('cards_dealt',{isLastDeal:room.isLastDeal});
-  // Always trigger bot here — handles both first deal and mid-round re-deals
+  // Trigger bot after deal — use longer delay so players see the dealt cards first
   const first = room.players[room.currentPlayerIndex];
-  if (first && first.isBot) scheduleBotWatchdog(room, room.code, first.id);
+  if (first && first.isBot) {
+    setTimeout(() => scheduleBotWatchdog(room, room.code, first.id), 300); // extra 300ms on top of watchdog's own 1200ms = ~1.5s total
+  }
 }
 
 // ─── Scoring ─────────────────────────────────────────────────────────────────
 function computeRoundScores(room) {
   const players=room.players, isTeams=room.teams!==null;
   const stats=players.map((p,i)=>({
-    playerIndex:i, name:p.name, scopas:p.scopas,
-    totalCards:p.captured.length, diamonds:p.captured.filter(c=>c.suit==='coins').length,
-    sevens:p.captured.filter(c=>c.value===7).length, sixes:p.captured.filter(c=>c.value===6).length,
-    hasSettebello:p.captured.some(c=>c.suit==='coins'&&c.value===7),
-    points:p.scopas, sevensTied:false, teamIndex:p.teamIndex??i, teamAgg:null,
+    playerIndex:i, name:p.name,
+    scopas:p.scopas||0,
+    totalCards:(p.captured||[]).length,
+    diamonds:(p.captured||[]).filter(c=>c.suit==='coins').length,
+    sevens:(p.captured||[]).filter(c=>c.value===7).length,
+    sixes:(p.captured||[]).filter(c=>c.value===6).length,
+    hasSettebello:(p.captured||[]).some(c=>c.suit==='coins'&&c.value===7),
+    points:p.scopas||0, sevensTied:false, teamIndex:p.teamIndex??i, teamAgg:null,
   }));
 
   const teamAgg=t=>{
@@ -532,3 +554,17 @@ io.on('connection',(socket)=>{
 
 const PORT=process.env.PORT||3000;
 server.listen(PORT,'0.0.0.0',()=>console.log(`Scopa server running on http://0.0.0.0:${PORT}`));
+
+// Prevent crashes from unhandled errors
+process.on('uncaughtException', (err) => {
+  console.error('[uncaughtException]', err.stack || err);
+  // Don't exit — keep server running
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('[unhandledRejection]', reason);
+});
+process.on('SIGTERM', () => {
+  console.log('[SIGTERM received] — Railway is restarting the process (deploy or crash)');
+  // Allow graceful shutdown
+  server.close(() => process.exit(0));
+});
