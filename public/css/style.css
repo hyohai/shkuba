@@ -473,49 +473,49 @@ input[type="text"]::placeholder { color: var(--text-dim); }
 
 .table-top-row { display: none; } /* removed */
 
-/* ── Play area layout ───────────────────────────────────────────────── */
-.play-area { display: none; } /* removed */
+/* ── Layout ─────────────────────────────────────────────────────────── */
 
-/* Table takes all remaining vertical space */
+/* Table takes all vertical space between topbar and hand */
 .table-area {
   flex: 1;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  padding: 0.5rem 0.75rem; position: relative;
-  overflow: hidden;
+  padding: 0.5rem 0.75rem; position: relative; overflow: hidden;
 }
 
-/* Bottom row: deck pile + hand side by side, fixed height */
-.bottom-area {
-  display: flex;
-  flex-direction: row;
-  align-items: stretch;
-  border-top: 1px solid rgba(201,146,42,0.15);
+/* Hand — fixed at bottom, full width */
+.hand-area {
+  flex-shrink: 0;
+  padding: 0.5rem 0.75rem 0.75rem;
   background: rgba(0,0,0,0.2);
-  flex-shrink: 0;
+  border-top: 1px solid rgba(201,146,42,0.15);
+  min-height: 130px;
+  display: flex; flex-direction: column;
+}
+.hand-cards {
+  display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap;
 }
 
-/* Deck pile (left of hand) */
+/* Deck pile — absolute bottom-left, outside layout flow */
 .deck-area {
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  padding: 0.5rem 0.5rem 0.6rem 0.6rem; gap: 0.35rem;
-  min-width: 74px; max-width: 74px;
-  border-right: 1px solid rgba(201,146,42,0.15);
-  flex-shrink: 0;
+  position: absolute;
+  bottom: 12px; left: 8px;
+  display: flex; flex-direction: column; align-items: center; gap: 0.3rem;
+  z-index: 20;
 }
 .deck-count-label {
-  font-family: 'Cinzel', serif; font-size: 1.3rem; font-weight: 700;
+  font-family: 'Cinzel', serif; font-size: 1.1rem; font-weight: 700;
   color: var(--gold2); text-shadow: 0 0 12px rgba(232,184,75,0.4); line-height: 1;
 }
 .deck-pile {
-  position: relative; width: 56px; height: 82px;
+  position: relative; width: 52px; height: 76px;
   transition: transform 0.15s;
 }
 .deck-pile.dealable { cursor: pointer; }
-.deck-pile.dealable:hover { transform: scale(1.07); }
-.deck-pile.dealable:active { transform: scale(0.96); }
+.deck-pile.dealable:hover { transform: scale(1.08); }
+.deck-pile.dealable:active { transform: scale(0.95); }
 .deck-pile.empty { opacity: 0.18; pointer-events: none; }
 .deck-card-back {
-  position: absolute; width: 54px; height: 80px;
+  position: absolute; width: 50px; height: 74px;
   background: linear-gradient(135deg, #1a4a2a 0%, #0d2414 100%);
   border: 1px solid rgba(201,146,42,0.5); border-radius: 6px;
   box-shadow: 0 2px 6px rgba(0,0,0,0.5);
@@ -534,17 +534,9 @@ input[type="text"]::placeholder { color: var(--text-dim); }
 }
 .deck-pile.dealing .deck-card-back:nth-child(3) { animation: deal-flash 0.4s ease; }
 .deck-deal-hint {
-  font-family: 'Cinzel', serif; font-size: 0.55rem; letter-spacing: 0.08em;
+  font-family: 'Cinzel', serif; font-size: 0.5rem; letter-spacing: 0.08em;
   color: var(--gold2); text-align: center; line-height: 1.4; white-space: pre-line;
   animation: pulse-hint 1.5s ease-in-out infinite;
-}
-
-/* Hand area (fills rest of bottom row) */
-.hand-area {
-  flex: 1;
-  padding: 0.5rem 0.75rem 0.75rem;
-  display: flex; flex-direction: column;
-  min-height: 130px;
 }
 
 .last-capture-hint {

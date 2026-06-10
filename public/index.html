@@ -91,21 +91,21 @@
   <!-- Turn indicator -->
   <div class="turn-banner" id="turn-banner"></div>
 
-  <!-- Bottom: deck pile (left) + hand (center) -->
-  <div class="bottom-area">
-    <div class="deck-area" id="deck-area">
-      <div class="deck-count-label" id="deck-count-num">0</div>
-      <div class="deck-pile" id="deck-pile">
-        <div class="deck-card-back"></div>
-        <div class="deck-card-back"></div>
-        <div class="deck-card-back"></div>
-      </div>
-      <div class="deck-deal-hint hidden" id="deck-deal-hint">Tap to deal</div>
+  <!-- Hand (center bottom) -->
+  <div class="hand-area">
+    <div class="hand-label">Your hand</div>
+    <div class="hand-cards" id="hand-cards"></div>
+  </div>
+
+  <!-- Deck pile (absolute bottom-left, never affects layout) -->
+  <div class="deck-area" id="deck-area">
+    <div class="deck-count-label" id="deck-count-num">0</div>
+    <div class="deck-pile" id="deck-pile">
+      <div class="deck-card-back"></div>
+      <div class="deck-card-back"></div>
+      <div class="deck-card-back"></div>
     </div>
-    <div class="hand-area">
-      <div class="hand-label">Your hand</div>
-      <div class="hand-cards" id="hand-cards"></div>
-    </div>
+    <div class="deck-deal-hint hidden" id="deck-deal-hint">Tap to deal</div>
   </div>
 
   <!-- Play result overlay -->
